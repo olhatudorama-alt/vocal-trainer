@@ -7,762 +7,658 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Vocal Trainer</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-title" content="VocalTrainer">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a3e;
-    --accent: #7c6aff;
-    --accent2: #ff6a9e;
-    --green: #4dffa0;
-    --amber: #ffb84d;
-    --red: #ff4d6a;
-    --text: #e8e8f0;
-    --muted: #6b6b85;
-    --mono: 'DM Mono', monospace;
-    --display: 'Syne', sans-serif;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    min-height: 100dvh;
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  /* Noise texture overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.4;
-  }
-
-  /* Grid background */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: 
-      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-  }
-
-  #app {
-    max-width: 420px;
-    margin: 0 auto;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    padding: 0 20px 32px;
-    position: relative;
-  }
-
-  /* ── HEADER ── */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 24px 0 20px;
-  }
-
-  .logo-wrap { display: flex; flex-direction: column; gap: 2px; }
-
-  .logo {
-    font-family: var(--display);
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    color: var(--text);
-  }
-
-  .logo span {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .subtitle { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
-
-  .settings-btn {
-    width: 40px; height: 40px;
-    border-radius: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    color: var(--muted);
-    font-size: 18px;
-    transition: all 0.2s;
-  }
-  .settings-btn:hover, .settings-btn:active { border-color: var(--accent); color: var(--accent); }
-
-  /* ── SCREENS ── */
-  .screen { display: none; flex-direction: column; flex: 1; gap: 20px; animation: fadeIn 0.3s ease; }
-  .screen.active { display: flex; }
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* ── STATUS CARD ── */
-  .status-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .status-card::before {
-    content: '';
-    position: absolute;
-    top: -60px; left: 50%;
-    transform: translateX(-50%);
-    width: 200px; height: 200px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--glow-color, rgba(124,106,255,0.12)) 0%, transparent 70%);
-    transition: background 0.5s;
-  }
-
-  /* ── ORBE VISUAL ── */
-  .orb-container {
-    position: relative;
-    width: 160px; height: 160px;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  .orb-ring {
-    position: absolute;
-    border-radius: 50%;
-    border: 1px solid;
-    animation: pulse-ring 2s ease-in-out infinite;
-  }
-  .orb-ring:nth-child(1) { width: 160px; height: 160px; border-color: rgba(124,106,255,0.15); animation-delay: 0s; }
-  .orb-ring:nth-child(2) { width: 130px; height: 130px; border-color: rgba(124,106,255,0.2); animation-delay: 0.3s; }
-  .orb-ring:nth-child(3) { width: 100px; height: 100px; border-color: rgba(124,106,255,0.3); animation-delay: 0.6s; }
-
-  @keyframes pulse-ring {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.05); opacity: 1; }
-  }
-
-  .orb {
-    width: 72px; height: 72px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, var(--orb-color1, #9d8fff), var(--orb-color2, #5a47cc));
-    box-shadow: 0 0 30px var(--orb-glow, rgba(124,106,255,0.4));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px;
-    transition: all 0.4s ease;
-    position: relative;
-    z-index: 2;
-  }
-
-  .orb.monitoring {
-    animation: orb-breathe 1.5s ease-in-out infinite;
-  }
-  @keyframes orb-breathe {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
-  }
-
-  .status-label {
-    font-family: var(--display);
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-  }
-
-  .status-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
-
-  /* ── PITCH DISPLAY ── */
-  .pitch-display {
-    display: flex;
-    gap: 16px;
-    width: 100%;
-  }
-
-  .pitch-box {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-
-  .pitch-box-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
-
-  .pitch-box-value {
-    font-family: var(--display);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -1px;
-    line-height: 1;
-  }
-
-  .pitch-box-unit { font-size: 10px; color: var(--muted); }
-
-  /* ── WAVEFORM ── */
-  .waveform-container {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-
-  .waveform-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
-
-  #waveform-canvas {
-    width: 100%;
-    height: 60px;
-    border-radius: 8px;
-  }
-
-  /* ── BUTTONS ── */
-  .btn {
-    width: 100%;
-    padding: 16px;
-    border-radius: 16px;
-    border: none;
-    cursor: pointer;
-    font-family: var(--display);
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-    transition: all 0.15s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: white;
-    opacity: 0;
-    transition: opacity 0.1s;
-  }
-  .btn:active::after { opacity: 0.08; }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #5a47cc);
-    color: white;
-    box-shadow: 0 8px 24px rgba(124,106,255,0.3);
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(124,106,255,0.4); }
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-secondary {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-  .btn-danger {
-    background: var(--surface);
-    color: var(--red);
-    border: 1px solid rgba(255,77,106,0.3);
-  }
-
-  .btn-success {
-    background: linear-gradient(135deg, #2d9e63, #1a7a49);
-    color: white;
-    box-shadow: 0 8px 24px rgba(77,255,160,0.2);
-  }
-
-  .btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-
-  .btn-sub { font-size: 11px; font-family: var(--mono); font-weight: 400; opacity: 0.65; display: block; margin-top: 3px; }
-
-  /* ── CALIBRATION SCREEN ── */
-  .progress-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-
-  .progress-header { display: flex; justify-content: space-between; align-items: center; }
-  .progress-title { font-family: var(--display); font-size: 15px; font-weight: 600; }
-  .progress-pct { font-size: 13px; color: var(--accent); font-weight: 500; }
-
-  .progress-bar-bg {
-    height: 6px; border-radius: 3px;
-    background: var(--surface2);
-    overflow: hidden;
-  }
-  .progress-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transition: width 0.3s ease;
-    width: 0%;
-  }
-
-  .progress-hint { font-size: 11px; color: var(--muted); }
-
-  /* Pitch samples grid */
-  .samples-grid {
-    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
-  }
-
-  .sample-dot {
-    height: 32px; border-radius: 6px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; color: var(--muted);
-    transition: all 0.3s;
-  }
-
-  .sample-dot.filled {
-    background: linear-gradient(135deg, rgba(124,106,255,0.2), rgba(255,106,158,0.2));
-    border-color: var(--accent);
-    color: var(--text);
-    font-size: 8px;
-  }
-
-  /* ── MONITORING SCREEN ── */
-  .alert-counter {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-
-  .alert-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
-  .alert-value { font-family: var(--display); font-size: 24px; font-weight: 800; color: var(--amber); }
-
-  .timer-bar-wrap {
-    background: var(--surface2);
-    border-radius: 4px;
-    height: 4px;
-    overflow: hidden;
-    margin-top: 8px;
-  }
-  .timer-bar {
-    height: 100%;
-    border-radius: 4px;
-    background: var(--amber);
-    width: 0%;
-    transition: width 0.1s linear;
-  }
-
-  /* ── SETTINGS SCREEN ── */
-  .settings-section { display: flex; flex-direction: column; gap: 12px; }
-  .settings-title { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; padding: 0 4px; }
-
-  .setting-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-
-  .setting-header { display: flex; justify-content: space-between; align-items: center; }
-  .setting-name { font-size: 13px; font-weight: 500; }
-  .setting-value { font-size: 13px; color: var(--accent); font-family: var(--mono); }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    width: 100%; height: 4px;
-    background: var(--surface2);
-    border-radius: 2px;
-    outline: none;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-    box-shadow: 0 0 8px rgba(124,106,255,0.5);
-  }
-
-  .toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-  }
-
-  .toggle {
-    width: 44px; height: 26px;
-    background: var(--surface2);
-    border-radius: 13px;
-    border: 1px solid var(--border);
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .toggle.on { background: var(--accent); border-color: var(--accent); }
-  .toggle::after {
-    content: '';
-    position: absolute;
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    background: white;
-    top: 2px; left: 2px;
-    transition: transform 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  }
-  .toggle.on::after { transform: translateX(18px); }
-
-  /* ── INFO CARD ── */
-  .info-card {
-    background: linear-gradient(135deg, rgba(124,106,255,0.08), rgba(255,106,158,0.05));
-    border: 1px solid rgba(124,106,255,0.2);
-    border-radius: 14px;
-    padding: 14px 16px;
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.6;
-  }
-
-  .info-card strong { color: var(--text); }
-
-  /* ── ALERT FLASH ── */
-  .alert-flash {
-    position: fixed;
-    inset: 0;
-    background: rgba(255,184,77,0.06);
-    pointer-events: none;
-    opacity: 0;
-    z-index: 500;
-    transition: opacity 0.1s;
-  }
-  .alert-flash.active { opacity: 1; }
-
-  /* ── TOAST ── */
-  .toast {
-    position: fixed;
-    bottom: 40px; left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 20px;
-    font-size: 13px;
-    white-space: nowrap;
-    opacity: 0;
-    transition: all 0.3s ease;
-    z-index: 900;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* ── NAV TABS ── */
-  .nav-tabs {
-    display: flex; gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 6px;
-    margin-bottom: 4px;
-  }
-
-  .nav-tab {
-    flex: 1; padding: 8px;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-  }
-  .nav-tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-
-  /* ── CALIB RESULT ── */
-  .calib-result {
-    background: linear-gradient(135deg, rgba(77,255,160,0.08), rgba(124,106,255,0.05));
-    border: 1px solid rgba(77,255,160,0.2);
-    border-radius: 16px;
-    padding: 20px;
-    display: none; flex-direction: column; align-items: center; gap: 8px;
-  }
-  .calib-result.show { display: flex; }
-  .calib-result-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
-  .calib-result-value { font-family: var(--display); font-size: 48px; font-weight: 800; color: var(--green); letter-spacing: -2px; }
-  .calib-result-unit { font-size: 12px; color: var(--muted); }
-
+:root {
+--bg: #0a0a0f;
+--surface: #12121a;
+--surface2: #1a1a26;
+--border: #2a2a3e;
+--accent: #7c6aff;
+--accent2: #ff6a9e;
+--green: #4dffa0;
+--amber: #ffb84d;
+--red: #ff4d6a;
+--text: #e8e8f0;
+--muted: #6b6b85;
+--mono: 'DM Mono', monospace;
+--display: 'Syne', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+background: var(--bg);
+color: var(--text);
+font-family: var(--mono);
+min-height: 100dvh;
+overflow-x: hidden;
+position: relative;
+}
+body::before {
+content: '';
+position: fixed;
+inset: 0;
+background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+pointer-events: none;
+z-index: 1000;
+opacity: 0.4;
+}
+body::after {
+content: '';
+position: fixed;
+inset: 0;
+background-image:
+linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+background-size: 40px 40px;
+pointer-events: none;
+}
+#app {
+max-width: 420px;
+margin: 0 auto;
+min-height: 100dvh;
+display: flex;
+flex-direction: column;
+padding: 0 20px 32px;
+position: relative;
+}
+header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 24px 0 20px;
+}
+.logo-wrap { display: flex; flex-direction: column; gap: 2px; }
+.logo {
+font-family: var(--display);
+font-size: 22px;
+font-weight: 800;
+letter-spacing: -0.5px;
+color: var(--text);
+}
+.logo span {
+background: linear-gradient(135deg, var(--accent), var(--accent2));
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+}
+.subtitle { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+.settings-btn {
+width: 40px; height: 40px;
+border-radius: 12px;
+background: var(--surface);
+border: 1px solid var(--border);
+display: flex; align-items: center; justify-content: center;
+cursor: pointer;
+color: var(--muted);
+font-size: 18px;
+transition: all 0.2s;
+}
+.settings-btn:hover, .settings-btn:active { border-color: var(--accent); color: var(--accent); }
+.screen { display: none; flex-direction: column; flex: 1; gap: 20px; animation: fadeIn 0.3s ease; }
+.screen.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.status-card {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 20px;
+padding: 24px;
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 16px;
+position: relative;
+overflow: hidden;
+}
+.status-card::before {
+content: '';
+position: absolute;
+top: -60px; left: 50%;
+transform: translateX(-50%);
+width: 200px; height: 200px;
+border-radius: 50%;
+background: radial-gradient(circle, var(--glow-color, rgba(124,106,255,0.12)) 0%, transparent 70%);
+transition: background 0.5s;
+}
+.orb-container {
+position: relative;
+width: 160px; height: 160px;
+display: flex; align-items: center; justify-content: center;
+}
+.orb-ring {
+position: absolute;
+border-radius: 50%;
+border: 1px solid;
+animation: pulse-ring 2s ease-in-out infinite;
+}
+.orb-ring:nth-child(1) { width: 160px; height: 160px; border-color: rgba(124,106,255,0.15); animation-delay: 0s; }
+.orb-ring:nth-child(2) { width: 130px; height: 130px; border-color: rgba(124,106,255,0.2); animation-delay: 0.3s; }
+.orb-ring:nth-child(3) { width: 100px; height: 100px; border-color: rgba(124,106,255,0.3); animation-delay: 0.6s; }
+@keyframes pulse-ring {
+0%, 100% { transform: scale(1); opacity: 0.5; }
+50% { transform: scale(1.05); opacity: 1; }
+}
+.orb {
+width: 72px; height: 72px;
+border-radius: 50%;
+background: radial-gradient(circle at 35% 35%, var(--orb-color1, #9d8fff), var(--orb-color2, #5a47cc));
+box-shadow: 0 0 30px var(--orb-glow, rgba(124,106,255,0.4));
+display: flex; align-items: center; justify-content: center;
+font-size: 28px;
+transition: all 0.4s ease;
+position: relative;
+z-index: 2;
+}
+.orb.monitoring {
+animation: orb-breathe 1.5s ease-in-out infinite;
+}
+@keyframes orb-breathe {
+0%, 100% { transform: scale(1); }
+50% { transform: scale(1.08); }
+}
+.status-label {
+font-family: var(--display);
+font-size: 20px;
+font-weight: 700;
+letter-spacing: -0.3px;
+}
+.status-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+.pitch-display {
+display: flex;
+gap: 16px;
+width: 100%;
+}
+.pitch-box {
+flex: 1;
+background: var(--surface2);
+border: 1px solid var(--border);
+border-radius: 14px;
+padding: 14px;
+display: flex; flex-direction: column; gap: 4px;
+}
+.pitch-box-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.pitch-box-value {
+font-family: var(--display);
+font-size: 28px;
+font-weight: 700;
+letter-spacing: -1px;
+line-height: 1;
+}
+.pitch-box-unit { font-size: 10px; color: var(--muted); }
+.waveform-container {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 16px;
+padding: 16px;
+display: flex; flex-direction: column; gap: 10px;
+}
+.waveform-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+#waveform-canvas, #monitor-canvas {
+width: 100%;
+height: 60px;
+border-radius: 8px;
+}
+.btn {
+width: 100%;
+padding: 16px;
+border-radius: 16px;
+border: none;
+cursor: pointer;
+font-family: var(--display);
+font-size: 16px;
+font-weight: 700;
+letter-spacing: -0.3px;
+transition: all 0.15s;
+position: relative;
+overflow: hidden;
+}
+.btn::after {
+content: '';
+position: absolute;
+inset: 0;
+background: white;
+opacity: 0;
+transition: opacity 0.1s;
+}
+.btn:active::after { opacity: 0.08; }
+.btn-primary {
+background: linear-gradient(135deg, var(--accent), #5a47cc);
+color: white;
+box-shadow: 0 8px 24px rgba(124,106,255,0.3);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(124,106,255,0.4); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary {
+background: var(--surface);
+color: var(--text);
+border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger {
+background: var(--surface);
+color: var(--red);
+border: 1px solid rgba(255,77,106,0.3);
+}
+.btn-success {
+background: linear-gradient(135deg, #2d9e63, #1a7a49);
+color: white;
+box-shadow: 0 8px 24px rgba(77,255,160,0.2);
+}
+.btn:disabled {
+opacity: 0.35;
+cursor: not-allowed;
+transform: none !important;
+box-shadow: none !important;
+}
+.btn-sub { font-size: 11px; font-family: var(--mono); font-weight: 400; opacity: 0.65; display: block; margin-top: 3px; }
+.progress-wrap {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 16px;
+padding: 20px;
+display: flex; flex-direction: column; gap: 12px;
+}
+.progress-header { display: flex; justify-content: space-between; align-items: center; }
+.progress-title { font-family: var(--display); font-size: 15px; font-weight: 600; }
+.progress-pct { font-size: 13px; color: var(--accent); font-weight: 500; }
+.progress-bar-bg {
+height: 6px; border-radius: 3px;
+background: var(--surface2);
+overflow: hidden;
+}
+.progress-bar-fill {
+height: 100%;
+border-radius: 3px;
+background: linear-gradient(90deg, var(--accent), var(--accent2));
+transition: width 0.3s ease;
+width: 0%;
+}
+.progress-hint { font-size: 11px; color: var(--muted); }
+.samples-grid {
+display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+}
+.sample-dot {
+height: 32px; border-radius: 6px;
+background: var(--surface2);
+border: 1px solid var(--border);
+display: flex; align-items: center; justify-content: center;
+font-size: 9px; color: var(--muted);
+transition: all 0.3s;
+}
+.sample-dot.filled {
+background: linear-gradient(135deg, rgba(124,106,255,0.2), rgba(255,106,158,0.2));
+border-color: var(--accent);
+color: var(--text);
+font-size: 8px;
+}
+.alert-counter {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 16px;
+padding: 16px 20px;
+display: flex; align-items: center; justify-content: space-between;
+}
+.alert-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.alert-value { font-family: var(--display); font-size: 24px; font-weight: 800; color: var(--amber); }
+.timer-bar-wrap {
+background: var(--surface2);
+border-radius: 4px;
+height: 4px;
+overflow: hidden;
+margin-top: 8px;
+}
+.timer-bar {
+height: 100%;
+border-radius: 4px;
+background: var(--amber);
+width: 0%;
+transition: width 0.1s linear;
+}
+.settings-section { display: flex; flex-direction: column; gap: 12px; }
+.settings-title { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; padding: 0 4px; }
+.setting-row {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 14px;
+padding: 16px;
+display: flex; flex-direction: column; gap: 10px;
+}
+.setting-header { display: flex; justify-content: space-between; align-items: center; }
+.setting-name { font-size: 13px; font-weight: 500; }
+.setting-value { font-size: 13px; color: var(--accent); font-family: var(--mono); }
+input[type=range] {
+-webkit-appearance: none;
+width: 100%; height: 4px;
+background: var(--surface2);
+border-radius: 2px;
+outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+-webkit-appearance: none;
+width: 18px; height: 18px;
+border-radius: 50%;
+background: var(--accent);
+cursor: pointer;
+box-shadow: 0 0 8px rgba(124,106,255,0.5);
+}
+.toggle-row {
+display: flex; align-items: center; justify-content: space-between;
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 14px;
+padding: 16px;
+}
+.toggle {
+width: 44px; height: 26px;
+background: var(--surface2);
+border-radius: 13px;
+border: 1px solid var(--border);
+position: relative;
+cursor: pointer;
+transition: background 0.2s;
+}
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+.toggle::after {
+content: '';
+position: absolute;
+width: 20px; height: 20px;
+border-radius: 50%;
+background: white;
+top: 2px; left: 2px;
+transition: transform 0.2s;
+box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.toggle.on::after { transform: translateX(18px); }
+.info-card {
+background: linear-gradient(135deg, rgba(124,106,255,0.08), rgba(255,106,158,0.05));
+border: 1px solid rgba(124,106,255,0.2);
+border-radius: 14px;
+padding: 14px 16px;
+font-size: 12px;
+color: var(--muted);
+line-height: 1.6;
+}
+.info-card strong { color: var(--text); }
+.alert-flash {
+position: fixed;
+inset: 0;
+background: rgba(255,184,77,0.06);
+pointer-events: none;
+opacity: 0;
+z-index: 500;
+transition: opacity 0.1s;
+}
+.alert-flash.active { opacity: 1; }
+.toast {
+position: fixed;
+bottom: 40px; left: 50%;
+transform: translateX(-50%) translateY(20px);
+background: var(--surface2);
+border: 1px solid var(--border);
+border-radius: 12px;
+padding: 12px 20px;
+font-size: 13px;
+white-space: nowrap;
+opacity: 0;
+transition: all 0.3s ease;
+z-index: 900;
+box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.nav-tabs {
+display: flex; gap: 8px;
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 14px;
+padding: 6px;
+margin-bottom: 4px;
+}
+.nav-tab {
+flex: 1; padding: 8px;
+border-radius: 10px;
+border: none;
+background: transparent;
+color: var(--muted);
+font-family: var(--mono);
+font-size: 11px;
+cursor: pointer;
+transition: all 0.2s;
+text-align: center;
+}
+.nav-tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.calib-result {
+background: linear-gradient(135deg, rgba(77,255,160,0.08), rgba(124,106,255,0.05));
+border: 1px solid rgba(77,255,160,0.2);
+border-radius: 16px;
+padding: 20px;
+display: none; flex-direction: column; align-items: center; gap: 8px;
+}
+.calib-result.show { display: flex; }
+.calib-result-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+.calib-result-value { font-family: var(--display); font-size: 48px; font-weight: 800; color: var(--green); letter-spacing: -2px; }
+.calib-result-unit { font-size: 12px; color: var(--muted); }
+/* HTTPS Warning Banner */
+.https-warning {
+background: linear-gradient(135deg, rgba(255,184,77,0.15), rgba(255,77,106,0.1));
+border: 1px solid rgba(255,184,77,0.3);
+border-radius: 12px;
+padding: 12px 16px;
+margin-bottom: 16px;
+font-size: 11px;
+color: var(--amber);
+display: none;
+}
+.https-warning.show { display: block; }
+.https-warning strong { color: var(--text); }
 </style>
 </head>
 <body>
-
 <div class="alert-flash" id="alertFlash"></div>
 <div class="toast" id="toast"></div>
-
 <div id="app">
-  <header>
-    <div class="logo-wrap">
-      <div class="logo">Vocal<span>Trainer</span></div>
-      <div class="subtitle">Pitch Monitor</div>
-    </div>
-    <button class="settings-btn" onclick="showScreen('settings')">⚙</button>
-  </header>
-
-  <!-- NAV TABS -->
-  <div class="nav-tabs">
-    <button class="nav-tab active" id="tab-home" onclick="showScreen('home')">Início</button>
-    <button class="nav-tab" id="tab-calib" onclick="showScreen('calibration')">Calibrar</button>
-    <button class="nav-tab" id="tab-monitor" onclick="showScreen('monitoring')">Monitorar</button>
-  </div>
-
-  <!-- ═══ HOME SCREEN ═══ -->
-  <div class="screen active" id="screen-home">
-
-    <div class="status-card" id="statusCard">
-      <div class="orb-container">
-        <div class="orb-ring"></div>
-        <div class="orb-ring"></div>
-        <div class="orb-ring"></div>
-        <div class="orb" id="mainOrb">🎙</div>
-      </div>
-      <div class="status-label" id="statusLabel">Pronto</div>
-      <div class="status-sub" id="statusSub">Calibre sua voz para começar</div>
-    </div>
-
-    <div class="pitch-display" id="pitchDisplay" style="display:none">
-      <div class="pitch-box">
-        <div class="pitch-box-label">Pitch Atual</div>
-        <div class="pitch-box-value" id="currentPitchVal">—</div>
-        <div class="pitch-box-unit">Hz</div>
-      </div>
-      <div class="pitch-box">
-        <div class="pitch-box-label">Referência</div>
-        <div class="pitch-box-value" id="refPitchVal">—</div>
-        <div class="pitch-box-unit">Hz</div>
-      </div>
-    </div>
-
-    <div class="waveform-container">
-      <div class="waveform-label">Forma de onda</div>
-      <canvas id="waveform-canvas" width="380" height="60"></canvas>
-    </div>
-
-    <button class="btn btn-primary" onclick="showScreen('calibration')">
-      <span id="calibBtnText">Calibrar Voz</span>
-      <span class="btn-sub" id="calibBtnSub">Leia uma frase por 10–15 segundos</span>
-    </button>
-
-    <button class="btn btn-secondary" id="monitorBtn" onclick="showScreen('monitoring')" disabled>
-      Iniciar Monitoramento
-      <span class="btn-sub">Calibre primeiro para ativar</span>
-    </button>
-
-  </div>
-
-  <!-- ═══ CALIBRATION SCREEN ═══ -->
-  <div class="screen" id="screen-calibration">
-
-    <div class="info-card">
-      <strong>Como calibrar:</strong> Fale normalmente por 10–15 segundos. Use sua voz habitual, como se estivesse conversando. O app aprenderá seu pitch de referência.
-    </div>
-
-    <div class="progress-wrap" id="calibProgress" style="display:none">
-      <div class="progress-header">
-        <span class="progress-title">Capturando amostras</span>
-        <span class="progress-pct" id="calibPct">0%</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="calibBar"></div>
-      </div>
-      <div class="progress-hint" id="calibHint">Fale normalmente...</div>
-    </div>
-
-    <div class="samples-grid" id="samplesGrid">
-      <!-- 10 dots gerados por JS -->
-    </div>
-
-    <div class="calib-result" id="calibResult">
-      <div class="calib-result-label">Pitch de Referência</div>
-      <div class="calib-result-value" id="calibResultHz">—</div>
-      <div class="calib-result-unit">Hz — Calibração salva ✓</div>
-    </div>
-
-    <button class="btn btn-primary" id="calibStartBtn" onclick="startCalibration()">
-      Iniciar Calibração
-      <span class="btn-sub">Microfone será ativado</span>
-    </button>
-
-    <button class="btn btn-danger" id="calibClearBtn" onclick="clearCalibration()" style="display:none">
-      Limpar Calibração
-    </button>
-
-  </div>
-
-  <!-- ═══ MONITORING SCREEN ═══ -->
-  <div class="screen" id="screen-monitoring">
-
-    <div class="status-card" id="monitorCard">
-      <div class="orb-container">
-        <div class="orb-ring"></div>
-        <div class="orb-ring"></div>
-        <div class="orb-ring"></div>
-        <div class="orb" id="monitorOrb">🎵</div>
-      </div>
-      <div class="status-label" id="monitorStatusLabel">Aguardando</div>
-      <div class="status-sub" id="monitorStatusSub">Pressione Iniciar para monitorar</div>
-    </div>
-
-    <div class="pitch-display">
-      <div class="pitch-box">
-        <div class="pitch-box-label">Pitch Atual</div>
-        <div class="pitch-box-value" id="monCurrentHz">—</div>
-        <div class="pitch-box-unit">Hz</div>
-      </div>
-      <div class="pitch-box">
-        <div class="pitch-box-label">Referência</div>
-        <div class="pitch-box-value" id="monRefHz">—</div>
-        <div class="pitch-box-unit">Hz</div>
-      </div>
-    </div>
-
-    <div class="alert-counter">
-      <div>
-        <div class="alert-label">Tempo abaixo do limite</div>
-        <div class="timer-bar-wrap">
-          <div class="timer-bar" id="timerBar"></div>
-        </div>
-      </div>
-      <div class="alert-value" id="timeBelowVal">0.0s</div>
-    </div>
-
-    <div class="waveform-container">
-      <div class="waveform-label">Monitoramento em tempo real</div>
-      <canvas id="monitor-canvas" width="380" height="60"></canvas>
-    </div>
-
-    <button class="btn btn-success" id="monitorStartBtn" onclick="toggleMonitoring()">
-      Iniciar Monitoramento
-    </button>
-    <button class="btn btn-secondary" onclick="showScreen('home')">← Voltar</button>
-
-  </div>
-
-  <!-- ═══ SETTINGS SCREEN ═══ -->
-  <div class="screen" id="screen-settings">
-
-    <div class="settings-section">
-      <div class="settings-title">Sensibilidade do Alerta</div>
-      <div class="setting-row">
-        <div class="setting-header">
-          <span class="setting-name">Queda mínima para alerta</span>
-          <span class="setting-value" id="sensitivityVal">10%</span>
-        </div>
-        <input type="range" min="5" max="20" value="10" id="sensitivitySlider"
-          oninput="updateSetting('sensitivity', this.value)">
-        <div class="progress-hint">Quanto o pitch precisa cair para disparar o alerta</div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-title">Tempo Mínimo</div>
-      <div class="setting-row">
-        <div class="setting-header">
-          <span class="setting-name">Duração antes do alerta</span>
-          <span class="setting-value" id="durationVal">2.0s</span>
-        </div>
-        <input type="range" min="10" max="30" value="20" id="durationSlider"
-          oninput="updateSetting('duration', this.value)">
-        <div class="progress-hint">Segundos contínuos abaixo do limite para alertar</div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-title">Alertas</div>
-      <div class="toggle-row">
-        <div>
-          <div class="setting-name">Som de alerta (bip)</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Toque curto ao detectar queda</div>
-        </div>
-        <div class="toggle on" id="toggleSound" onclick="toggleSetting('sound')"></div>
-      </div>
-      <div class="toggle-row" style="margin-top:8px">
-        <div>
-          <div class="setting-name">Vibração</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Vibrar junto com o alerta</div>
-        </div>
-        <div class="toggle on" id="toggleVibration" onclick="toggleSetting('vibration')"></div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-title">Volume do Alerta</div>
-      <div class="setting-row">
-        <div class="setting-header">
-          <span class="setting-name">Volume</span>
-          <span class="setting-value" id="volumeVal">70%</span>
-        </div>
-        <input type="range" min="0" max="100" value="70" id="volumeSlider"
-          oninput="updateSetting('volume', this.value)">
-      </div>
-    </div>
-
-    <button class="btn btn-secondary" onclick="showScreen('home')">← Voltar</button>
-
-  </div>
-
+<!-- HTTPS Warning -->
+<div class="https-warning" id="httpsWarning">
+⚠️ <strong>HTTPS necessário:</strong> Para usar o microfone, hospede este arquivo em HTTPS (GitHub Pages, Vercel, Netlify)
 </div>
-
+<header>
+<div class="logo-wrap">
+<div class="logo">Vocal<span>Trainer</span></div>
+<div class="subtitle">Pitch Monitor</div>
+</div>
+<button class="settings-btn" onclick="showScreen('settings')">⚙</button>
+</header>
+<div class="nav-tabs">
+<button class="nav-tab active" id="tab-home" onclick="showScreen('home')">Início</button>
+<button class="nav-tab" id="tab-calib" onclick="showScreen('calibration')">Calibrar</button>
+<button class="nav-tab" id="tab-monitor" onclick="showScreen('monitoring')">Monitorar</button>
+</div>
+<!-- ═══ HOME SCREEN ═══ -->
+<div class="screen active" id="screen-home">
+<div class="status-card" id="statusCard">
+<div class="orb-container">
+<div class="orb-ring"></div>
+<div class="orb-ring"></div>
+<div class="orb-ring"></div>
+<div class="orb" id="mainOrb">🎙</div>
+</div>
+<div class="status-label" id="statusLabel">Pronto</div>
+<div class="status-sub" id="statusSub">Calibre sua voz para começar</div>
+</div>
+<div class="pitch-display" id="pitchDisplay" style="display:none">
+<div class="pitch-box">
+<div class="pitch-box-label">Pitch Atual</div>
+<div class="pitch-box-value" id="currentPitchVal">—</div>
+<div class="pitch-box-unit">Hz</div>
+</div>
+<div class="pitch-box">
+<div class="pitch-box-label">Referência</div>
+<div class="pitch-box-value" id="refPitchVal">—</div>
+<div class="pitch-box-unit">Hz</div>
+</div>
+</div>
+<div class="waveform-container">
+<div class="waveform-label">Forma de onda</div>
+<canvas id="waveform-canvas" height="60"></canvas>
+</div>
+<button class="btn btn-primary" onclick="showScreen('calibration')">
+<span id="calibBtnText">Calibrar Voz</span>
+<span class="btn-sub" id="calibBtnSub">Leia uma frase por 10–15 segundos</span>
+</button>
+<button class="btn btn-secondary" id="monitorBtn" onclick="showScreen('monitoring')" disabled>
+Iniciar Monitoramento
+<span class="btn-sub">Calibre primeiro para ativar</span>
+</button>
+</div>
+<!-- ═══ CALIBRATION SCREEN ═══ -->
+<div class="screen" id="screen-calibration">
+<div class="info-card">
+<strong>Como calibrar:</strong> Fale normalmente por 10–15 segundos. Use sua voz habitual, como se estivesse conversando. O app aprenderá seu pitch de referência.
+</div>
+<div class="progress-wrap" id="calibProgress" style="display:none">
+<div class="progress-header">
+<span class="progress-title">Capturando amostras</span>
+<span class="progress-pct" id="calibPct">0%</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill" id="calibBar"></div>
+</div>
+<div class="progress-hint" id="calibHint">Fale normalmente...</div>
+</div>
+<div class="samples-grid" id="samplesGrid"></div>
+<div class="calib-result" id="calibResult">
+<div class="calib-result-label">Pitch de Referência</div>
+<div class="calib-result-value" id="calibResultHz">—</div>
+<div class="calib-result-unit">Hz — Calibração salva ✓</div>
+</div>
+<button class="btn btn-primary" id="calibStartBtn" onclick="startCalibration()">
+Iniciar Calibração
+<span class="btn-sub">Microfone será ativado</span>
+</button>
+<button class="btn btn-danger" id="calibClearBtn" onclick="clearCalibration()" style="display:none">
+Limpar Calibração
+</button>
+</div>
+<!-- ═══ MONITORING SCREEN ═══ -->
+<div class="screen" id="screen-monitoring">
+<div class="status-card" id="monitorCard">
+<div class="orb-container">
+<div class="orb-ring"></div>
+<div class="orb-ring"></div>
+<div class="orb-ring"></div>
+<div class="orb" id="monitorOrb">🎵</div>
+</div>
+<div class="status-label" id="monitorStatusLabel">Aguardando</div>
+<div class="status-sub" id="monitorStatusSub">Pressione Iniciar para monitorar</div>
+</div>
+<div class="pitch-display">
+<div class="pitch-box">
+<div class="pitch-box-label">Pitch Atual</div>
+<div class="pitch-box-value" id="monCurrentHz">—</div>
+<div class="pitch-box-unit">Hz</div>
+</div>
+<div class="pitch-box">
+<div class="pitch-box-label">Referência</div>
+<div class="pitch-box-value" id="monRefHz">—</div>
+<div class="pitch-box-unit">Hz</div>
+</div>
+</div>
+<div class="alert-counter">
+<div>
+<div class="alert-label">Tempo abaixo do limite</div>
+<div class="timer-bar-wrap">
+<div class="timer-bar" id="timerBar"></div>
+</div>
+</div>
+<div class="alert-value" id="timeBelowVal">0.0s</div>
+</div>
+<div class="waveform-container">
+<div class="waveform-label">Monitoramento em tempo real</div>
+<canvas id="monitor-canvas" height="60"></canvas>
+</div>
+<button class="btn btn-success" id="monitorStartBtn" onclick="toggleMonitoring()">
+Iniciar Monitoramento
+</button>
+<button class="btn btn-secondary" onclick="showScreen('home')">← Voltar</button>
+</div>
+<!-- ═══ SETTINGS SCREEN ═══ -->
+<div class="screen" id="screen-settings">
+<div class="settings-section">
+<div class="settings-title">Sensibilidade do Alerta</div>
+<div class="setting-row">
+<div class="setting-header">
+<span class="setting-name">Queda mínima para alerta</span>
+<span class="setting-value" id="sensitivityVal">10%</span>
+</div>
+<input type="range" min="5" max="20" value="10" id="sensitivitySlider"
+oninput="updateSetting('sensitivity', this.value)">
+<div class="progress-hint">Quanto o pitch precisa cair para disparar o alerta</div>
+</div>
+</div>
+<div class="settings-section">
+<div class="settings-title">Tempo Mínimo</div>
+<div class="setting-row">
+<div class="setting-header">
+<span class="setting-name">Duração antes do alerta</span>
+<span class="setting-value" id="durationVal">2.0s</span>
+</div>
+<input type="range" min="10" max="30" value="20" id="durationSlider"
+oninput="updateSetting('duration', this.value)">
+<div class="progress-hint">Segundos contínuos abaixo do limite para alertar</div>
+</div>
+</div>
+<div class="settings-section">
+<div class="settings-title">Alertas</div>
+<div class="toggle-row">
+<div>
+<div class="setting-name">Som de alerta (bip)</div>
+<div style="font-size:11px;color:var(--muted);margin-top:2px">Toque curto ao detectar queda</div>
+</div>
+<div class="toggle on" id="toggleSound" onclick="toggleSetting('sound')"></div>
+</div>
+<div class="toggle-row" style="margin-top:8px">
+<div>
+<div class="setting-name">Vibração</div>
+<div style="font-size:11px;color:var(--muted);margin-top:2px">Vibrar junto com o alerta</div>
+</div>
+<div class="toggle on" id="toggleVibration" onclick="toggleSetting('vibration')"></div>
+</div>
+</div>
+<div class="settings-section">
+<div class="settings-title">Volume do Alerta</div>
+<div class="setting-row">
+<div class="setting-header">
+<span class="setting-name">Volume</span>
+<span class="setting-value" id="volumeVal">70%</span>
+</div>
+<input type="range" min="0" max="100" value="70" id="volumeSlider"
+oninput="updateSetting('volume', this.value)">
+</div>
+</div>
+<button class="btn btn-secondary" onclick="showScreen('home')">← Voltar</button>
+</div>
+</div>
 <script>
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
 const state = {
-  isCalibrated: false,
-  referencePitch: 0,
-  isCalibrating: false,
-  isMonitoring: false,
-  isPaused: false,
-  currentPitch: 0,
-  timeBelowMs: 0,
-  belowStartTime: null,
-  alertFired: false,
-  calibSamples: [],
-  settings: {
-    sensitivity: 10,
-    minDurationMs: 2000,
-    alertVolume: 0.7,
-    soundEnabled: true,
-    vibrationEnabled: true,
-  }
+isCalibrated: false,
+referencePitch: 0,
+isCalibrating: false,
+isMonitoring: false,
+isPaused: false,
+currentPitch: 0,
+timeBelowMs: 0,
+belowStartTime: null,
+alertFired: false,
+calibSamples: [],
+settings: {
+sensitivity: 10,
+minDurationMs: 2000,
+alertVolume: 0.7,
+soundEnabled: true,
+vibrationEnabled: true,
+}
 };
-
 // ═══════════════════════════════════════════════
 // AUDIO ENGINE
 // ═══════════════════════════════════════════════
@@ -771,99 +667,160 @@ let analyser = null;
 let microphone = null;
 let animFrame = null;
 let calibTimer = null;
-const SAMPLE_RATE = 44100;
-const FFT_SIZE = 4096;
+let monitorLoop = null;
+let actualSampleRate = 44100;
+const FFT_SIZE = 2048; // Reduzido para melhor performance mobile
 
-async function initAudio() {
-  if (audioCtx) return true;
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    microphone = audioCtx.createMediaStreamSource(stream);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = FFT_SIZE;
-    analyser.smoothingTimeConstant = 0.3;
-    microphone.connect(analyser);
-    return true;
-  } catch(e) {
-    showToast('❌ Acesso ao microfone negado');
-    return false;
-  }
+// Verificar HTTPS
+function checkHTTPS() {
+const isHTTPS = location.protocol === 'https:' || 
+location.hostname === 'localhost' || 
+location.hostname === '127.0.0.1';
+if (!isHTTPS) {
+document.getElementById('httpsWarning').classList.add('show');
+console.warn('⚠️ HTTPS necessário para microfone');
+}
+return isHTTPS;
 }
 
-// Autocorrelation pitch detection (from Manus source)
+async function initAudio() {
+if (audioCtx) {
+// Resume se estiver suspenso (política do Chrome)
+if (audioCtx.state === 'suspended') {
+await audioCtx.resume();
+}
+return true;
+}
+try {
+// Verificar HTTPS primeiro
+const isHTTPS = checkHTTPS();
+if (!isHTTPS) {
+showToast('⚠️ Use HTTPS para ativar o microfone');
+return false;
+}
+// Criar AudioContext SEM sample rate fixo (usar nativo do dispositivo)
+audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// IMPORTANTE: Resume após interação do usuário
+await audioCtx.resume();
+actualSampleRate = audioCtx.sampleRate;
+console.log('🎵 AudioContext criado - Sample Rate:', actualSampleRate);
+const stream = await navigator.mediaDevices.getUserMedia({ 
+audio: { 
+echoCancellation: true,
+noiseSuppression: true,
+autoGainControl: false
+}, 
+video: false 
+});
+microphone = audioCtx.createMediaStreamSource(stream);
+analyser = audioCtx.createAnalyser();
+analyser.fftSize = FFT_SIZE;
+analyser.smoothingTimeConstant = 0.3;
+microphone.connect(analyser);
+return true;
+} catch(e) {
+console.error('❌ Audio init error:', e.name, e.message);
+if (e.name === 'NotAllowedError') {
+showToast('❌ Permissão de microfone negada');
+} else if (e.name === 'NotFoundError') {
+showToast('❌ Nenhum microfone encontrado');
+} else if (e.name === 'NotSupportedError') {
+showToast('❌ Dispositivo não suportado');
+} else if (location.protocol !== 'https:') {
+showToast('❌ Instale em HTTPS (GitHub Pages, Vercel)');
+} else {
+showToast('❌ Erro: ' + e.message);
+}
+return false;
+}
+}
+
+// Autocorrelation pitch detection
 function detectPitch(buffer, sampleRate) {
-  // RMS check
-  let rms = 0;
-  for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
-  rms = Math.sqrt(rms / buffer.length);
-  if (rms < 0.008) return 0;
-
-  // Apply Hann window
-  const windowed = new Float32Array(buffer.length);
-  for (let i = 0; i < buffer.length; i++) {
-    windowed[i] = buffer[i] * 0.5 * (1 - Math.cos(2 * Math.PI * i / (buffer.length - 1)));
-  }
-
-  // Autocorrelation
-  const maxLag = Math.floor(sampleRate / 50);
-  const minLag = Math.floor(sampleRate / 400);
-  let maxCorr = -Infinity, bestLag = minLag;
-
-  for (let lag = minLag; lag < maxLag; lag++) {
-    let corr = 0;
-    for (let i = 0; i < windowed.length - lag; i++) corr += windowed[i] * windowed[i + lag];
-    if (corr > maxCorr) { maxCorr = corr; bestLag = lag; }
-  }
-
-  const pitch = sampleRate / bestLag;
-  return (pitch > 50 && pitch < 400) ? pitch : 0;
+// RMS check
+let rms = 0;
+for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
+rms = Math.sqrt(rms / buffer.length);
+if (rms < 0.008) return 0;
+// Apply Hann window
+const windowed = new Float32Array(buffer.length);
+for (let i = 0; i < buffer.length; i++) {
+windowed[i] = buffer[i] * 0.5 * (1 - Math.cos(2 * Math.PI * i / (buffer.length - 1)));
+}
+// Autocorrelation
+const maxLag = Math.floor(sampleRate / 50);
+const minLag = Math.floor(sampleRate / 400);
+let maxCorr = -Infinity, bestLag = minLag;
+for (let lag = minLag; lag < maxLag; lag++) {
+let corr = 0;
+for (let i = 0; i < windowed.length - lag; i++) corr += windowed[i] * windowed[i + lag];
+if (corr > maxCorr) { maxCorr = corr; bestLag = lag; }
+}
+const pitch = sampleRate / bestLag;
+return (pitch > 50 && pitch < 400) ? pitch : 0;
 }
 
 function getAudioBuffer() {
-  if (!analyser) return null;
-  const buf = new Float32Array(analyser.fftSize);
-  analyser.getFloatTimeDomainData(buf);
-  return buf;
+if (!analyser) return null;
+const buf = new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(buf);
+return buf;
 }
 
 // ═══════════════════════════════════════════════
 // WAVEFORM DRAWING
 // ═══════════════════════════════════════════════
+function resizeCanvas(canvasId) {
+const canvas = document.getElementById(canvasId);
+if (!canvas) return;
+const container = canvas.parentElement;
+// Usar largura do container menos padding
+canvas.width = (container.clientWidth - 32) * window.devicePixelRatio;
+canvas.height = 60 * window.devicePixelRatio;
+canvas.style.width = (container.clientWidth - 32) + 'px';
+canvas.style.height = '60px';
+const ctx = canvas.getContext('2d');
+ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+function resizeAllCanvases() {
+resizeCanvas('waveform-canvas');
+resizeCanvas('monitor-canvas');
+}
+
 function drawWaveform(canvasId, color = '#7c6aff') {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-
-  if (!analyser) {
-    // idle line
-    ctx.strokeStyle = 'rgba(124,106,255,0.2)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(0, H/2);
-    ctx.lineTo(W, H/2);
-    ctx.stroke();
-    return;
-  }
-
-  const buf = new Float32Array(analyser.fftSize);
-  analyser.getFloatTimeDomainData(buf);
-
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = color;
-  ctx.beginPath();
-  const sliceW = W / buf.length;
-  for (let i = 0; i < buf.length; i++) {
-    const x = i * sliceW;
-    const y = (1 - (buf[i] + 1) / 2) * H;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+const canvas = document.getElementById(canvasId);
+if (!canvas) return;
+const ctx = canvas.getContext('2d');
+// Usar dimensões CSS, não as do buffer
+const W = canvas.clientWidth;
+const H = canvas.clientHeight;
+ctx.clearRect(0, 0, W, H);
+if (!analyser) {
+// idle line
+ctx.strokeStyle = 'rgba(124,106,255,0.2)';
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.moveTo(0, H/2);
+ctx.lineTo(W, H/2);
+ctx.stroke();
+return;
+}
+const buf = new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(buf);
+ctx.strokeStyle = color;
+ctx.lineWidth = 1.5;
+ctx.shadowBlur = 8;
+ctx.shadowColor = color;
+ctx.beginPath();
+const sliceW = W / buf.length;
+for (let i = 0; i < buf.length; i++) {
+const x = i * sliceW;
+const y = (1 - (buf[i] + 1) / 2) * H;
+i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+}
+ctx.stroke();
+ctx.shadowBlur = 0;
 }
 
 // ═══════════════════════════════════════════════
@@ -873,361 +830,327 @@ const CALIB_SAMPLES_NEEDED = 10;
 const CALIB_DURATION_MS = 12000;
 
 function buildSamplesGrid() {
-  const grid = document.getElementById('samplesGrid');
-  grid.innerHTML = '';
-  for (let i = 0; i < CALIB_SAMPLES_NEEDED; i++) {
-    const d = document.createElement('div');
-    d.className = 'sample-dot';
-    d.id = `dot-${i}`;
-    d.textContent = `${i+1}`;
-    grid.appendChild(d);
-  }
+const grid = document.getElementById('samplesGrid');
+grid.innerHTML = '';
+for (let i = 0; i < CALIB_SAMPLES_NEEDED; i++) {
+const d = document.createElement('div');
+d.className = 'sample-dot';
+d.id = `dot-${i}`;
+d.textContent = `${i+1}`;
+grid.appendChild(d);
+}
 }
 
 async function startCalibration() {
-  if (state.isCalibrating) return;
-  const ok = await initAudio();
-  if (!ok) return;
-
-  state.isCalibrating = true;
-  state.calibSamples = [];
-  buildSamplesGrid();
-
-  document.getElementById('calibProgress').style.display = 'flex';
-  document.getElementById('calibResult').classList.remove('show');
-  document.getElementById('calibStartBtn').disabled = true;
-  document.getElementById('calibStartBtn').textContent = 'Calibrando...';
-
-  const interval = CALIB_DURATION_MS / CALIB_SAMPLES_NEEDED;
-  let count = 0;
-
-  function collectSample() {
-    if (!state.isCalibrating) return;
-    const buf = getAudioBuffer();
-    if (buf) {
-      const pitch = detectPitch(buf, SAMPLE_RATE);
-      if (pitch > 0) {
-        state.calibSamples.push(pitch);
-        const dot = document.getElementById(`dot-${count}`);
-        if (dot) {
-          dot.classList.add('filled');
-          dot.textContent = `${pitch.toFixed(0)}`;
-        }
-      }
-    }
-    count++;
-    const pct = Math.round((count / CALIB_SAMPLES_NEEDED) * 100);
-    document.getElementById('calibPct').textContent = `${pct}%`;
-    document.getElementById('calibBar').style.width = `${pct}%`;
-    document.getElementById('calibHint').textContent =
-      count < 5 ? 'Fale normalmente...' :
-      count < 8 ? 'Ótimo! Continue falando...' : 'Quase pronto...';
-
-    drawWaveform('waveform-canvas');
-
-    if (count < CALIB_SAMPLES_NEEDED) {
-      calibTimer = setTimeout(collectSample, interval);
-    } else {
-      finishCalibration();
-    }
-  }
-
-  collectSample();
+if (state.isCalibrating) return;
+// Importante: Iniciar áudio apenas após clique do usuário
+const ok = await initAudio();
+if (!ok) return;
+state.isCalibrating = true;
+state.calibSamples = [];
+buildSamplesGrid();
+document.getElementById('calibProgress').style.display = 'flex';
+document.getElementById('calibResult').classList.remove('show');
+document.getElementById('calibStartBtn').disabled = true;
+document.getElementById('calibStartBtn').textContent = 'Calibrando...';
+const interval = CALIB_DURATION_MS / CALIB_SAMPLES_NEEDED;
+let count = 0;
+function collectSample() {
+if (!state.isCalibrating) return;
+const buf = getAudioBuffer();
+if (buf) {
+const pitch = detectPitch(buf, actualSampleRate);
+if (pitch > 0) {
+state.calibSamples.push(pitch);
+const dot = document.getElementById(`dot-${count}`);
+if (dot) {
+dot.classList.add('filled');
+dot.textContent = `${pitch.toFixed(0)}`;
+}
+}
+}
+count++;
+const pct = Math.round((count / CALIB_SAMPLES_NEEDED) * 100);
+document.getElementById('calibPct').textContent = `${pct}%`;
+document.getElementById('calibBar').style.width = `${pct}%`;
+document.getElementById('calibHint').textContent =
+count < 5 ? 'Fale normalmente...' :
+count < 8 ? 'Ótimo! Continue falando...' : 'Quase pronto...';
+drawWaveform('waveform-canvas');
+if (count < CALIB_SAMPLES_NEEDED) {
+calibTimer = setTimeout(collectSample, interval);
+} else {
+finishCalibration();
+}
+}
+collectSample();
 }
 
 function finishCalibration() {
-  state.isCalibrating = false;
-  clearTimeout(calibTimer);
-
-  const validSamples = state.calibSamples.filter(p => p > 0);
-  if (validSamples.length < 3) {
-    showToast('⚠ Poucos dados. Fale mais alto ou mais perto.');
-    resetCalibUI();
-    return;
-  }
-
-  // Median for robustness
-  validSamples.sort((a, b) => a - b);
-  const mid = Math.floor(validSamples.length / 2);
-  state.referencePitch = validSamples.length % 2 !== 0
-    ? validSamples[mid]
-    : (validSamples[mid-1] + validSamples[mid]) / 2;
-
-  state.isCalibrated = true;
-  localStorage.setItem('vt_referencePitch', state.referencePitch);
-  localStorage.setItem('vt_calibrated', '1');
-
-  // Update UI
-  document.getElementById('calibResultHz').textContent = state.referencePitch.toFixed(1);
-  document.getElementById('calibResult').classList.add('show');
-  document.getElementById('calibClearBtn').style.display = 'block';
-  document.getElementById('calibStartBtn').textContent = 'Recalibrar';
-  document.getElementById('calibStartBtn').disabled = false;
-
-  updateHomeForCalibration();
-  showToast('✓ Calibração concluída!');
+state.isCalibrating = false;
+clearTimeout(calibTimer);
+const validSamples = state.calibSamples.filter(p => p > 0);
+if (validSamples.length < 3) {
+showToast('⚠ Poucos dados. Fale mais alto ou mais perto.');
+resetCalibUI();
+return;
+}
+// Median for robustness
+validSamples.sort((a, b) => a - b);
+const mid = Math.floor(validSamples.length / 2);
+state.referencePitch = validSamples.length % 2 !== 0
+? validSamples[mid]
+: (validSamples[mid-1] + validSamples[mid]) / 2;
+state.isCalibrated = true;
+localStorage.setItem('vt_referencePitch', state.referencePitch);
+localStorage.setItem('vt_calibrated', '1');
+// Update UI
+document.getElementById('calibResultHz').textContent = state.referencePitch.toFixed(1);
+document.getElementById('calibResult').classList.add('show');
+document.getElementById('calibClearBtn').style.display = 'block';
+document.getElementById('calibStartBtn').textContent = 'Recalibrar';
+document.getElementById('calibStartBtn').disabled = false;
+updateHomeForCalibration();
+showToast('✓ Calibração concluída!');
 }
 
 function resetCalibUI() {
-  document.getElementById('calibStartBtn').textContent = 'Iniciar Calibração';
-  document.getElementById('calibStartBtn').disabled = false;
+document.getElementById('calibStartBtn').textContent = 'Iniciar Calibração';
+document.getElementById('calibStartBtn').disabled = false;
 }
 
 function clearCalibration() {
-  state.isCalibrated = false;
-  state.referencePitch = 0;
-  localStorage.removeItem('vt_referencePitch');
-  localStorage.removeItem('vt_calibrated');
-  document.getElementById('calibResult').classList.remove('show');
-  document.getElementById('calibClearBtn').style.display = 'none';
-  document.getElementById('calibStartBtn').textContent = 'Iniciar Calibração';
-  buildSamplesGrid();
-  updateHomeForCalibration();
-  showToast('Calibração removida');
+state.isCalibrated = false;
+state.referencePitch = 0;
+localStorage.removeItem('vt_referencePitch');
+localStorage.removeItem('vt_calibrated');
+document.getElementById('calibResult').classList.remove('show');
+document.getElementById('calibClearBtn').style.display = 'none';
+document.getElementById('calibStartBtn').textContent = 'Iniciar Calibração';
+buildSamplesGrid();
+updateHomeForCalibration();
+showToast('Calibração removida');
 }
 
 function updateHomeForCalibration() {
-  const monBtn = document.getElementById('monitorBtn');
-  if (state.isCalibrated) {
-    document.getElementById('calibBtnText').textContent = 'Recalibrar';
-    document.getElementById('calibBtnSub').textContent = `Referência: ${state.referencePitch.toFixed(1)} Hz`;
-    monBtn.disabled = false;
-    monBtn.innerHTML = `Iniciar Monitoramento<span class="btn-sub">Pitch de referência: ${state.referencePitch.toFixed(1)} Hz</span>`;
-    setOrbState('calibrated');
-  } else {
-    document.getElementById('calibBtnText').textContent = 'Calibrar Voz';
-    document.getElementById('calibBtnSub').textContent = 'Leia uma frase por 10–15 segundos';
-    monBtn.disabled = true;
-    monBtn.innerHTML = `Iniciar Monitoramento<span class="btn-sub">Calibre primeiro para ativar</span>`;
-    setOrbState('idle');
-  }
+const monBtn = document.getElementById('monitorBtn');
+if (state.isCalibrated) {
+document.getElementById('calibBtnText').textContent = 'Recalibrar';
+document.getElementById('calibBtnSub').textContent = `Referência: ${state.referencePitch.toFixed(1)} Hz`;
+monBtn.disabled = false;
+monBtn.innerHTML = `Iniciar Monitoramento<span class="btn-sub">Pitch de referência: ${state.referencePitch.toFixed(1)} Hz</span>`;
+setOrbState('calibrated');
+} else {
+document.getElementById('calibBtnText').textContent = 'Calibrar Voz';
+document.getElementById('calibBtnSub').textContent = 'Leia uma frase por 10–15 segundos';
+monBtn.disabled = true;
+monBtn.innerHTML = `Iniciar Monitoramento<span class="btn-sub">Calibre primeiro para ativar</span>`;
+setOrbState('idle');
+}
 }
 
 // ═══════════════════════════════════════════════
 // MONITORING
 // ═══════════════════════════════════════════════
-let monitorLoop = null;
-
 async function toggleMonitoring() {
-  if (!state.isCalibrated) { showToast('Calibre primeiro!'); return; }
-
-  if (state.isMonitoring) {
-    stopMonitoring();
-  } else {
-    await startMonitoring();
-  }
+if (!state.isCalibrated) { showToast('Calibre primeiro!'); return; }
+if (state.isMonitoring) {
+stopMonitoring();
+} else {
+await startMonitoring();
+}
 }
 
 async function startMonitoring() {
-  const ok = await initAudio();
-  if (!ok) return;
-
-  state.isMonitoring = true;
-  state.timeBelowMs = 0;
-  state.belowStartTime = null;
-  state.alertFired = false;
-
-  document.getElementById('monitorStartBtn').textContent = '⏹ Parar Monitoramento';
-  document.getElementById('monitorStartBtn').className = 'btn btn-danger';
-  document.getElementById('monRefHz').textContent = state.referencePitch.toFixed(1);
-
-  setOrbState('monitoring');
-  monitorLoop = setInterval(monitorTick, 100);
+const ok = await initAudio();
+if (!ok) return;
+state.isMonitoring = true;
+state.timeBelowMs = 0;
+state.belowStartTime = null;
+state.alertFired = false;
+document.getElementById('monitorStartBtn').textContent = '⏹ Parar Monitoramento';
+document.getElementById('monitorStartBtn').className = 'btn btn-danger';
+document.getElementById('monRefHz').textContent = state.referencePitch.toFixed(1);
+setOrbState('monitoring');
+monitorLoop = setInterval(monitorTick, 100);
 }
 
 function stopMonitoring() {
-  state.isMonitoring = false;
-  clearInterval(monitorLoop);
-  monitorLoop = null;
-  state.timeBelowMs = 0;
-  state.belowStartTime = null;
-
-  document.getElementById('monitorStartBtn').textContent = 'Iniciar Monitoramento';
-  document.getElementById('monitorStartBtn').className = 'btn btn-success';
-  document.getElementById('monitorStatusLabel').textContent = 'Parado';
-  document.getElementById('monitorStatusSub').textContent = 'Pressione Iniciar para monitorar';
-  document.getElementById('timeBelowVal').textContent = '0.0s';
-  document.getElementById('timerBar').style.width = '0%';
-  document.getElementById('monCurrentHz').textContent = '—';
-
-  setOrbState('calibrated');
-  cancelAnimationFrame(animFrame);
+state.isMonitoring = false;
+clearInterval(monitorLoop);
+monitorLoop = null;
+state.timeBelowMs = 0;
+state.belowStartTime = null;
+document.getElementById('monitorStartBtn').textContent = 'Iniciar Monitoramento';
+document.getElementById('monitorStartBtn').className = 'btn btn-success';
+document.getElementById('monitorStatusLabel').textContent = 'Parado';
+document.getElementById('monitorStatusSub').textContent = 'Pressione Iniciar para monitorar';
+document.getElementById('timeBelowVal').textContent = '0.0s';
+document.getElementById('timerBar').style.width = '0%';
+document.getElementById('monCurrentHz').textContent = '—';
+setOrbState('calibrated');
+cancelAnimationFrame(animFrame);
 }
 
 function monitorTick() {
-  const buf = getAudioBuffer();
-  if (!buf) return;
-
-  const pitch = detectPitch(buf, SAMPLE_RATE);
-  state.currentPitch = pitch;
-
-  if (pitch > 0) {
-    document.getElementById('monCurrentHz').textContent = pitch.toFixed(1);
-
-    const threshold = state.referencePitch * (1 - state.settings.sensitivity / 100);
-    const isBelow = pitch < threshold;
-
-    if (isBelow) {
-      if (!state.belowStartTime) state.belowStartTime = Date.now();
-      state.timeBelowMs = Date.now() - state.belowStartTime;
-
-      const pct = Math.min(100, (state.timeBelowMs / state.settings.minDurationMs) * 100);
-      document.getElementById('timerBar').style.width = pct + '%';
-      document.getElementById('timeBelowVal').textContent = (state.timeBelowMs / 1000).toFixed(1) + 's';
-
-      if (state.timeBelowMs >= state.settings.minDurationMs && !state.alertFired) {
-        triggerAlert();
-        state.alertFired = true;
-      }
-
-      setOrbState('below');
-      document.getElementById('monitorStatusLabel').textContent = '⚠ Abaixo';
-      document.getElementById('monitorStatusSub').textContent = `${(state.timeBelowMs/1000).toFixed(1)}s abaixo do limite`;
-    } else {
-      state.belowStartTime = null;
-      state.timeBelowMs = 0;
-      state.alertFired = false;
-      document.getElementById('timerBar').style.width = '0%';
-      document.getElementById('timeBelowVal').textContent = '0.0s';
-      setOrbState('monitoring');
-      document.getElementById('monitorStatusLabel').textContent = '✓ Dentro';
-      document.getElementById('monitorStatusSub').textContent = 'Pitch dentro do intervalo';
-    }
-  }
-
-  drawWaveform('monitor-canvas', state.currentPitch > 0 && state.belowStartTime ? '#ffb84d' : '#4dffa0');
-  drawWaveform('waveform-canvas');
+const buf = getAudioBuffer();
+if (!buf) return;
+const pitch = detectPitch(buf, actualSampleRate);
+state.currentPitch = pitch;
+if (pitch > 0) {
+document.getElementById('monCurrentHz').textContent = pitch.toFixed(1);
+const threshold = state.referencePitch * (1 - state.settings.sensitivity / 100);
+const isBelow = pitch < threshold;
+if (isBelow) {
+if (!state.belowStartTime) state.belowStartTime = Date.now();
+state.timeBelowMs = Date.now() - state.belowStartTime;
+const pct = Math.min(100, (state.timeBelowMs / state.settings.minDurationMs) * 100);
+document.getElementById('timerBar').style.width = pct + '%';
+document.getElementById('timeBelowVal').textContent = (state.timeBelowMs / 1000).toFixed(1) + 's';
+if (state.timeBelowMs >= state.settings.minDurationMs && !state.alertFired) {
+triggerAlert();
+state.alertFired = true;
+}
+setOrbState('below');
+document.getElementById('monitorStatusLabel').textContent = '⚠ Abaixo';
+document.getElementById('monitorStatusSub').textContent = `${(state.timeBelowMs/1000).toFixed(1)}s abaixo do limite`;
+} else {
+state.belowStartTime = null;
+state.timeBelowMs = 0;
+state.alertFired = false;
+document.getElementById('timerBar').style.width = '0%';
+document.getElementById('timeBelowVal').textContent = '0.0s';
+setOrbState('monitoring');
+document.getElementById('monitorStatusLabel').textContent = '✓ Dentro';
+document.getElementById('monitorStatusSub').textContent = 'Pitch dentro do intervalo';
+}
+}
+drawWaveform('monitor-canvas', state.currentPitch > 0 && state.belowStartTime ? '#ffb84d' : '#4dffa0');
+drawWaveform('waveform-canvas');
 }
 
 function triggerAlert() {
-  // Visual flash
-  const flash = document.getElementById('alertFlash');
-  flash.classList.add('active');
-  setTimeout(() => flash.classList.remove('active'), 200);
-
-  // Beep
-  if (state.settings.soundEnabled && audioCtx) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(state.settings.alertVolume * 0.3, audioCtx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.3);
-  }
-
-  // Vibration
-  if (state.settings.vibrationEnabled && navigator.vibrate) {
-    navigator.vibrate([100, 50, 100]);
-  }
+// Visual flash
+const flash = document.getElementById('alertFlash');
+flash.classList.add('active');
+setTimeout(() => flash.classList.remove('active'), 200);
+// Beep
+if (state.settings.soundEnabled && audioCtx) {
+const osc = audioCtx.createOscillator();
+const gain = audioCtx.createGain();
+osc.connect(gain);
+gain.connect(audioCtx.destination);
+osc.frequency.value = 880;
+osc.type = 'sine';
+gain.gain.setValueAtTime(0, audioCtx.currentTime);
+gain.gain.linearRampToValueAtTime(state.settings.alertVolume * 0.3, audioCtx.currentTime + 0.01);
+gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+osc.start(audioCtx.currentTime);
+osc.stop(audioCtx.currentTime + 0.3);
+}
+// Vibration
+if (state.settings.vibrationEnabled && navigator.vibrate) {
+navigator.vibrate([100, 50, 100]);
+}
 }
 
 // ═══════════════════════════════════════════════
 // ORB STATES
 // ═══════════════════════════════════════════════
 function setOrbState(s) {
-  const orb = document.getElementById('mainOrb');
-  const card = document.getElementById('statusCard');
-  const lbl = document.getElementById('statusLabel');
-  const sub = document.getElementById('statusSub');
-
-  const configs = {
-    idle: { emoji: '🎙', color1: '#9d8fff', color2: '#5a47cc', glow: 'rgba(124,106,255,0.4)', glowCard: 'rgba(124,106,255,0.12)', label: 'Pronto', sub: 'Calibre sua voz para começar', monitoring: false },
-    calibrated: { emoji: '✓', color1: '#6affa0', color2: '#2d9e63', glow: 'rgba(77,255,160,0.4)', glowCard: 'rgba(77,255,160,0.1)', label: 'Calibrado', sub: `Referência: ${state.referencePitch.toFixed(1)} Hz`, monitoring: false },
-    monitoring: { emoji: '♪', color1: '#6affa0', color2: '#2d9e63', glow: 'rgba(77,255,160,0.4)', glowCard: 'rgba(77,255,160,0.08)', label: '✓ Dentro', sub: 'Pitch dentro do intervalo', monitoring: true },
-    below: { emoji: '⚠', color1: '#ffd06a', color2: '#cc8800', glow: 'rgba(255,184,77,0.5)', glowCard: 'rgba(255,184,77,0.1)', label: '⚠ Abaixo', sub: 'Pitch abaixo da referência', monitoring: true },
-  };
-
-  const c = configs[s] || configs.idle;
-  orb.textContent = c.emoji;
-  orb.style.setProperty('--orb-color1', c.color1);
-  orb.style.setProperty('--orb-color2', c.color2);
-  orb.style.cssText += `background: radial-gradient(circle at 35% 35%, ${c.color1}, ${c.color2}); box-shadow: 0 0 30px ${c.glow};`;
-  card.style.setProperty('--glow-color', c.glowCard);
-  if (lbl) { lbl.textContent = c.label; sub.textContent = c.sub; }
-  orb.classList.toggle('monitoring', c.monitoring);
+const orb = document.getElementById('mainOrb');
+const card = document.getElementById('statusCard');
+const lbl = document.getElementById('statusLabel');
+const sub = document.getElementById('statusSub');
+const configs = {
+idle: { emoji: '🎙', color1: '#9d8fff', color2: '#5a47cc', glow: 'rgba(124,106,255,0.4)', glowCard: 'rgba(124,106,255,0.12)', label: 'Pronto', sub: 'Calibre sua voz para começar', monitoring: false },
+calibrated: { emoji: '✓', color1: '#6affa0', color2: '#2d9e63', glow: 'rgba(77,255,160,0.4)', glowCard: 'rgba(77,255,160,0.1)', label: 'Calibrado', sub: `Referência: ${state.referencePitch.toFixed(1)} Hz`, monitoring: false },
+monitoring: { emoji: '♪', color1: '#6affa0', color2: '#2d9e63', glow: 'rgba(77,255,160,0.4)', glowCard: 'rgba(77,255,160,0.08)', label: '✓ Dentro', sub: 'Pitch dentro do intervalo', monitoring: true },
+below: { emoji: '⚠', color1: '#ffd06a', color2: '#cc8800', glow: 'rgba(255,184,77,0.5)', glowCard: 'rgba(255,184,77,0.1)', label: '⚠ Abaixo', sub: 'Pitch abaixo da referência', monitoring: true },
+};
+const c = configs[s] || configs.idle;
+orb.textContent = c.emoji;
+orb.style.setProperty('--orb-color1', c.color1);
+orb.style.setProperty('--orb-color2', c.color2);
+orb.style.cssText += `background: radial-gradient(circle at 35% 35%, ${c.color1}, ${c.color2}); box-shadow: 0 0 30px ${c.glow};`;
+card.style.setProperty('--glow-color', c.glowCard);
+if (lbl) { lbl.textContent = c.label; sub.textContent = c.sub; }
+orb.classList.toggle('monitoring', c.monitoring);
 }
 
 // ═══════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════
 function updateSetting(key, val) {
-  val = parseFloat(val);
-  if (key === 'sensitivity') {
-    state.settings.sensitivity = val;
-    document.getElementById('sensitivityVal').textContent = val + '%';
-  } else if (key === 'duration') {
-    state.settings.minDurationMs = val * 100;
-    document.getElementById('durationVal').textContent = (val / 10).toFixed(1) + 's';
-  } else if (key === 'volume') {
-    state.settings.alertVolume = val / 100;
-    document.getElementById('volumeVal').textContent = val + '%';
-  }
-  saveSettings();
+val = parseFloat(val);
+if (key === 'sensitivity') {
+state.settings.sensitivity = val;
+document.getElementById('sensitivityVal').textContent = val + '%';
+} else if (key === 'duration') {
+state.settings.minDurationMs = val * 100;
+document.getElementById('durationVal').textContent = (val / 10).toFixed(1) + 's';
+} else if (key === 'volume') {
+state.settings.alertVolume = val / 100;
+document.getElementById('volumeVal').textContent = val + '%';
+}
+saveSettings();
 }
 
 function toggleSetting(key) {
-  if (key === 'sound') {
-    state.settings.soundEnabled = !state.settings.soundEnabled;
-    document.getElementById('toggleSound').classList.toggle('on', state.settings.soundEnabled);
-  } else if (key === 'vibration') {
-    state.settings.vibrationEnabled = !state.settings.vibrationEnabled;
-    document.getElementById('toggleVibration').classList.toggle('on', state.settings.vibrationEnabled);
-  }
-  saveSettings();
+if (key === 'sound') {
+state.settings.soundEnabled = !state.settings.soundEnabled;
+document.getElementById('toggleSound').classList.toggle('on', state.settings.soundEnabled);
+} else if (key === 'vibration') {
+state.settings.vibrationEnabled = !state.settings.vibrationEnabled;
+document.getElementById('toggleVibration').classList.toggle('on', state.settings.vibrationEnabled);
+}
+saveSettings();
 }
 
 function saveSettings() {
-  localStorage.setItem('vt_settings', JSON.stringify(state.settings));
+localStorage.setItem('vt_settings', JSON.stringify(state.settings));
 }
 
 function loadSettings() {
-  try {
-    const s = JSON.parse(localStorage.getItem('vt_settings') || '{}');
-    if (s.sensitivity) { state.settings.sensitivity = s.sensitivity; document.getElementById('sensitivitySlider').value = s.sensitivity; document.getElementById('sensitivityVal').textContent = s.sensitivity + '%'; }
-    if (s.minDurationMs) { state.settings.minDurationMs = s.minDurationMs; document.getElementById('durationSlider').value = s.minDurationMs / 100; document.getElementById('durationVal').textContent = (s.minDurationMs/1000).toFixed(1) + 's'; }
-    if (s.alertVolume !== undefined) { state.settings.alertVolume = s.alertVolume; document.getElementById('volumeSlider').value = s.alertVolume * 100; document.getElementById('volumeVal').textContent = Math.round(s.alertVolume * 100) + '%'; }
-    if (s.soundEnabled !== undefined) { state.settings.soundEnabled = s.soundEnabled; document.getElementById('toggleSound').classList.toggle('on', s.soundEnabled); }
-    if (s.vibrationEnabled !== undefined) { state.settings.vibrationEnabled = s.vibrationEnabled; document.getElementById('toggleVibration').classList.toggle('on', s.vibrationEnabled); }
-  } catch(e) {}
+try {
+const s = JSON.parse(localStorage.getItem('vt_settings') || '{}');
+if (s.sensitivity) { state.settings.sensitivity = s.sensitivity; document.getElementById('sensitivitySlider').value = s.sensitivity; document.getElementById('sensitivityVal').textContent = s.sensitivity + '%'; }
+if (s.minDurationMs) { state.settings.minDurationMs = s.minDurationMs; document.getElementById('durationSlider').value = s.minDurationMs / 100; document.getElementById('durationVal').textContent = (s.minDurationMs/1000).toFixed(1) + 's'; }
+if (s.alertVolume !== undefined) { state.settings.alertVolume = s.alertVolume; document.getElementById('volumeSlider').value = s.alertVolume * 100; document.getElementById('volumeVal').textContent = Math.round(s.alertVolume * 100) + '%'; }
+if (s.soundEnabled !== undefined) { state.settings.soundEnabled = s.soundEnabled; document.getElementById('toggleSound').classList.toggle('on', s.soundEnabled); }
+if (s.vibrationEnabled !== undefined) { state.settings.vibrationEnabled = s.vibrationEnabled; document.getElementById('toggleVibration').classList.toggle('on', s.vibrationEnabled); }
+} catch(e) {}
 }
 
 function loadCalibration() {
-  const saved = localStorage.getItem('vt_referencePitch');
-  if (saved && localStorage.getItem('vt_calibrated')) {
-    state.referencePitch = parseFloat(saved);
-    state.isCalibrated = true;
-    document.getElementById('calibResultHz').textContent = state.referencePitch.toFixed(1);
-    document.getElementById('calibResult').classList.add('show');
-    document.getElementById('calibClearBtn').style.display = 'block';
-    document.getElementById('calibStartBtn').textContent = 'Recalibrar';
-    updateHomeForCalibration();
-  }
+const saved = localStorage.getItem('vt_referencePitch');
+if (saved && localStorage.getItem('vt_calibrated')) {
+state.referencePitch = parseFloat(saved);
+state.isCalibrated = true;
+document.getElementById('calibResultHz').textContent = state.referencePitch.toFixed(1);
+document.getElementById('calibResult').classList.add('show');
+document.getElementById('calibClearBtn').style.display = 'block';
+document.getElementById('calibStartBtn').textContent = 'Recalibrar';
+updateHomeForCalibration();
+}
 }
 
 // ═══════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════
 function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-
-  document.getElementById(`screen-${name}`)?.classList.add('active');
-  document.getElementById(`tab-${name}`)?.classList.add('active');
-
-  if (name === 'monitoring' && !state.isCalibrated) {
-    showToast('Calibre sua voz primeiro!');
-    showScreen('calibration');
-    return;
-  }
-
-  if (name === 'monitoring') {
-    document.getElementById('monRefHz').textContent = state.referencePitch.toFixed(1);
-  }
+document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+document.getElementById(`screen-${name}`)?.classList.add('active');
+document.getElementById(`tab-${name}`)?.classList.add('active');
+if (name === 'monitoring' && !state.isCalibrated) {
+showToast('Calibre sua voz primeiro!');
+showScreen('calibration');
+return;
+}
+if (name === 'monitoring') {
+document.getElementById('monRefHz').textContent = state.referencePitch.toFixed(1);
+}
 }
 
 // ═══════════════════════════════════════════════
@@ -1235,38 +1158,60 @@ function showScreen(name) {
 // ═══════════════════════════════════════════════
 let toastTimer;
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+const t = document.getElementById('toast');
+t.textContent = msg;
+t.classList.add('show');
+clearTimeout(toastTimer);
+toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 // ═══════════════════════════════════════════════
 // IDLE WAVEFORM ANIMATION
 // ═══════════════════════════════════════════════
 function idleWaveform() {
-  if (!state.isMonitoring && !state.isCalibrating) {
-    drawWaveform('waveform-canvas');
-  }
-  requestAnimationFrame(idleWaveform);
+if (!state.isMonitoring && !state.isCalibrating) {
+drawWaveform('waveform-canvas');
+}
+requestAnimationFrame(idleWaveform);
 }
 
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
+checkHTTPS();
 buildSamplesGrid();
 loadSettings();
 loadCalibration();
 setOrbState('idle');
 idleWaveform();
 
-// Register Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
+// Resize canvases on load and resize
+window.addEventListener('resize', resizeAllCanvases);
+window.addEventListener('load', () => {
+setTimeout(resizeAllCanvases, 100);
+});
+
+// Debug function (remove in production)
+window.debugAudio = async function() {
+console.log('=== VOCAL TRAINER DEBUG ===');
+console.log('Protocol:', location.protocol);
+console.log('HTTPS:', location.protocol === 'https:');
+console.log('mediaDevices:', !!navigator.mediaDevices);
+console.log('AudioContext:', !!window.AudioContext);
+if (audioCtx) {
+console.log('AudioContext State:', audioCtx.state);
+console.log('Sample Rate:', audioCtx.sampleRate);
 }
+try {
+const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+console.log('✅ Microfone OK!', stream.getAudioTracks()[0].label);
+stream.getTracks().forEach(t => t.stop());
+showToast('✅ Microfone funciona!');
+} catch(e) {
+console.error('❌ Erro:', e.name, e.message);
+showToast('❌ ' + e.name + ': ' + e.message);
+}
+};
 </script>
 </body>
 </html>
